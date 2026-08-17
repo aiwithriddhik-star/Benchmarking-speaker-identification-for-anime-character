@@ -1,18 +1,67 @@
-# Benchmarking-speaker-verification-for-anime-character
-<img width="542" height="284" alt="image" src="https://github.com/user-attachments/assets/fb1dd9c2-6c92-4206-88a0-0047ccce0446" />
-the only gmm model make 19 gmm seprately which takes time and also if we have less data about the character the prediction won't we good so it better to make a ubm and make it less diminsion and use it accuracy:79.67
-<img width="368" height="299" alt="image" src="https://github.com/user-attachments/assets/af3b4465-d304-4be8-b213-b8f1c8bbbcd4" />
-running the same experiment twice produced small variations in accuracy. These differences are expected because the pipeline contains random components, such as the train/test split, random weight initialization (for MLP), or randomized algorithms (e.g., Random Forest). The variation is relatively small (approximately ±1%), indicating that the overall performance of the classifiers is stable. Across both runs, SVM, MLP, and PLDA consistently achieved around 87–89% accuracy, cosine similarity around 72%, and Random Forest around 56%, demonstrating that the ranking of the classifiers remains unchanged despite minor fluctuations.
-The per-character accuracies remain largely consistent across repeated runs. Characters such as Kurisu Makise, Frieren, Marin Kitagawa, Asuna Yuuki, Momo Ayase, and Rin Tohsaka consistently achieve near-perfect recognition accuracy, indicating that their speaker embeddings are highly discriminative. In contrast, Homura Akemi, Mikasa Ackerman, Rem, and Shiro consistently exhibit lower accuracies, suggesting that these characters are intrinsically more difficult to distinguish. Although individual accuracies vary slightly between runs due to randomness in training or data splitting, the overall ranking of easy and difficult characters remains stable, demonstrating the robustness of the model's behavior.
-also the poor Random Forest performance is more accurately explained as:
+# Benchmarking-speaker-identification-for-anime-character
+ Speaker identification for anime characters presents challenges beyond 
+conventional speaker recognition, since voice actors deliberately alter their vocal 
+characteristics to portray different personas, introducing acoustic variability and 
+inter-character similarity not seen in datasets where speakers use their natural 
+voice. Using the AnimeVox dataset of 19 anime characters, we compare a 
+per-character Gaussian Mixture Model (GMM) baseline against a Universal 
+Background Model (UBM) + i-vector pipeline, evaluating several classifiers (SVM, 
+RBF-SVM, DNN, PLDA, cosine similarity, Random Forest) across i-vector 
+dimensions of 50–200, and further compare the best i-vector-based classifier 
+against an end-to-end convolutional neural network (CNN) trained on Mel 
+spectrograms. The CNN achieved the highest overall accuracy (91.88%, F1-score 
+0.92), followed by the i-vector + DNN classifier (89.70%), both substantially 
+outperforming the GMM baseline (79.67%). We further analyze which characters 
+and character pairs are most frequently confused, finding that shared voice-actor 
+identity alone does not explain the observed misclassification patterns. 
+##  Dataset 
+animevox
+## feature extraction
+<img width="860" height="521" alt="image" src="https://github.com/user-attachments/assets/f544bf99-166b-4160-a65c-ff04d333925b" /><br>
+Our vocal folds produce a glottal pulse which passes through our vocal tract, which 
+acts as a resonant filter (shaped by tongue position, jaw, etc.) that boosts some 
+frequencies (formants) and damps others. To identify what word a person is speaking, 
+irrespective of who the speaker is, we focus on combination features such as tongue 
+movement and sound transitions; for our case, we instead look for the combination of 
+features that make a character’s voice unique (pitch pattern, resonance placement, 
+etc.). Two characters voiced by the same voice actor can still be differentiated because 
+there are performance-specific patterns (such as pitch pattern and spacing) that remain 
+unique, whereas determining whether two clips were spoken by the same underlying 
+person would instead rely on physiological cues such as vocal cord length. 
+In both the MFCC and Mel-spectrogram pipelines, the audio is first smoothed 
+using the Hanning function. The FFT evaluates the distribution of power across 
+individual frequencies, decomposing the signal into N discrete frequency components 
+indexed from 0 to N−1 for each frame. Mel filter banks warp linear frequencies to 
+match human auditory perception by applying overlapping triangular filters, giving 
+fine resolution at low frequencies and broader grouping at high frequencies. For 
+MFCC, we then apply the DCT to each frame to compress the frequency curve into a 
+collection of cosine waves (approximating the vocal tract envelope) and retain the top 
+few coefficients, since they explain most of the frame’s patterns. For the Mel 
+spectrogram, we instead plot frequency against time frame, since a CNN can operate 
+directly on this image-like representation.
+## classification 
+1) GMM+ UBM
+2) GMM+ UBM+ I VECTOR ( classification method used svm , svm rbf , dnn , plda , cosine similarity)
+3) CNN
+## result
+<img width="726" height="441" alt="image" src="https://github.com/user-attachments/assets/da00b8c4-f240-4f79-8794-59b50983520a" />
+<br>
+Several trends emerge from this analysis. RBF SVM and DNN achieve their best performance at the lowest dimensionality (50) and degrade slightly as dimensionality increases, suggesting that additional dimensions introduce noise or redundancy to which these models are more sensitive. In contrast, linear SVM, cosine similarity, and PLDA all improve monotonically with dimension, suggesting that these methods benefit from additional discriminative information as long as the underlying structure remains close to linear. Random Forest shows a strikingly different pattern, degrading sharply as dimension increases — from 69.24% at dimension 50 to just 44.01% at dimension 200. Across all four dimension settings, RBF SVM, linear SVM, and DNN remain closely clustered in the 87–90% range, while Random Forest and cosine similarity are consistently the weakest performers. This indicates that classifiers capable of learning more discriminative decision boundaries are better suited to i-vector-based speaker recognition than simple similarity measures or tree-based models on this dataset.
 
-i-vectors are continuous, dense, high-dimensional embeddings;
-class boundaries are not well approximated by repeated axis-aligned threshold splits;
-therefore, the Random Forest needs many trees to approximate the true boundary and still underperforms compared with SVM.
-The MLP also performed competitively by learning nonlinear feature representations. In contrast, the PLDA-style classifier relies on Gaussian and linear assumptions that may not adequately capture the complex distribution of anime character voices. Cosine similarity produced substantially lower accuracy because it measures only angular similarity between embeddings without learning class-specific decision boundaries.
-<img width="557" height="223" alt="image" src="https://github.com/user-attachments/assets/ec26c7c8-c3e1-4636-a672-784118b8bd74" />
-The PCA centroid analysis indicates that while several character pairs have highly similar average i-vector representations, many other pairs are well separated. Combined with the strong performance of the Linear SVM (≈88%) and the marginal improvement of the RBF SVM (≈89%), these results suggest that the i-vector embeddings are largely linearly separable, although some character pairs remain difficult to distinguish due to overlapping feature distributions.
-<img width="420" height="233" alt="image" src="https://github.com/user-attachments/assets/48c1a4b3-a782-46eb-891d-83b7d0d10ce0" />
-A comparison of the misclassification patterns reveals both common and model-specific errors. Both the RBF SVM and CNN consistently confuse character pairs such as Rem–Emilia, Megumin–Mai Sakurajima, Homura Akemi–Madoka Kaname, and Shiro–Rin Tohsaka, suggesting that these pairs possess inherently similar vocal characteristics and remain challenging regardless of the classifier. However, the models also exhibit distinct confusion patterns. The RBF SVM more frequently confuses Mikasa Ackerman with Marin Kitagawa, whereas the CNN confuses Mikasa Ackerman with Fern. Similarly, Mai Sakurajima is primarily confused with Megumin by the RBF SVM but with Homura Akemi by the CNN. These differences indicate that the CNN learns a different feature representation than the fixed i-vector embeddings used by the SVM. Overall, the consistent confusions across both models highlight intrinsically difficult character pairs, while the differing confusions demonstrate the influence of the underlying feature representation and classification strategy.
-<img width="445" height="315" alt="image" src="https://github.com/user-attachments/assets/4072810d-1f84-4d35-95a4-986b73b574fb" />
-The PCA centroid analysis provides partial support for the observed misclassification patterns. Certain errors, such as Mai Sakurajima–Megumin, correspond to character pairs with nearby centroids, indicating that close embedding proximity contributes to classification difficulty. However, several recurrent confusions, including Rem–Emilia, Homura Akemi–Madoka Kaname, and Shiro–Rin Tohsaka, are not among the nearest centroid pairs in PCA space. This demonstrates that centroid distance alone does not fully explain misclassification. Instead, the spread and overlap of class distributions in the high-dimensional i-vector space also play a significant role. The consistent confusion of several character pairs by both the RBF SVM and CNN further suggests that these errors stem from inherent acoustic similarities rather than classifier-specific limitations.
+<img width="1139" height="475" alt="image" src="https://github.com/user-attachments/assets/af0a74d0-3f9a-4e2a-a213-c4f879683341" />
+<br>
+CNN produced the best overall speaker recognition performance, achieving 91.88% accuracy, 0.92 precision, 0.92 recall, and a 0.92 F1-score. Among all i-vector classifiers, the DNN achieved the highest accuracy (89.70%) using 50-dimensional i-vectors, substantially outperforming the original per-character GMM baseline (79.67%) by over 12 points. One possible reason is that an independent GMM was trained for each character, increasing both computational cost and the risk of overfitting, particularly when the amount of training data per class was limited. In contrast, the i-vector framework models speaker variability in a shared low-dimensional space, resulting in better generalization.<br>
+CNN + Mel spectrogram performed better overall than the SVM/DNN + MFCC pipeline, as the CNN is more flexible in choosing which information to retain than the hand-picked top coefficients used by MFCC.
+
+##  character analysis 
+Fern was frequently involved in CNN misclassifications, suggesting that its learned spectrogram representation shares acoustic characteristics with several other female speakers. This may indicate similarities in pitch range, speaking rate, or spectral envelope rather than a limitation of the classifier alone.<br>
+Megumin and Emilia, as well as Madoka Kaname and Lucy, were not confused despite sharing a voice actor, suggesting the models learned speaker characteristics specific to the recorded performances instead of relying solely on voice-actor identity.<br>
+Rem and Emilia formed the strongest bidirectional confusion pair in both models. The persistence of this confusion across both the spectrogram-based CNN and the i-vector-based DNN suggests that the similarity originates from the acoustic characteristics of the voices themselves rather than from the feature extraction method. Both speakers exhibit relatively soft vocal intensity, similar pitch ranges, and comparable speaking styles, making them difficult to distinguish.
+
+## Conclusion
+The proposed lightweight CNN, containing approximately 627k trainable parameters, achieved an overall accuracy of 91.88%, with a precision of 0.92, recall of 0.92, and F1-score of 0.92 on the anime speaker identification dataset. Despite its compact architecture, the model demonstrated strong discriminative capability while requiring significantly fewer parameters than many commonly used CNN backbones. For the i-vector framework, multiple classifiers were evaluated, including cosine similarity, Random Forest, PLDA, linear SVM, RBF SVM, and DNN. Among these, the DNN classifier achieved the highest accuracy of 89.70% using 50-dimensional i-vectors, indicating that a nonlinear classifier is more effective at exploiting the discriminative information contained in low-dimensional speaker embeddings than the other evaluated classifiers.
+
+
+
+
+
